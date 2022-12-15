@@ -16,6 +16,16 @@ export default class Pacman {
 
     this.pacmanRotation = this.Rotation.right;
 
+    this.wakaSound = new Audio('../sounds/waka.wav');
+    this.powerDotSound = new Audio('../sounds/power_dot.wav');
+    this.eatGhostSound = new Audio('../sounds/eat_ghost.wav');
+
+    this.powerDotActive = false;
+    this.powerFotAboutToExpire = false;
+    this.timers = [];
+
+    this.madeFirstMove = false;
+
     document.addEventListener('keydown', this.#keydown);
 
     this.#loadPacmanImages();
@@ -28,9 +38,14 @@ export default class Pacman {
     up: 3,
   };
 
-  draw(ctx) {
-    this.#move();
-    this.#animate();
+  draw(ctx, pause, enemies) {
+    if (!pause) {
+      this.#move();
+      this.#animate();
+    }
+    this.#eatDot();
+    this.#eatPowerDot();
+    this.#eatGhost(enemies);
 
     const size = this.tileSize / 2;
 
@@ -45,14 +60,6 @@ export default class Pacman {
       this.tileSize
     );
     ctx.restore();
-
-    // ctx.drawImage(
-    //   this.pacmanImages[this.pacmanImageIndex],
-    //   this.x,
-    //   this.y,
-    //   this.tileSize,
-    //   this.tileSize
-    // );
   }
 
   #loadPacmanImages() {
@@ -82,6 +89,7 @@ export default class Pacman {
         this.currentMovingDirection = MovingDirection.up;
       }
       this.requestedMovingDirection = MovingDirection.up;
+      this.madeFirstMove = true;
     }
     // down
     if (event.keyCode == 40) {
@@ -89,6 +97,7 @@ export default class Pacman {
         this.currentMovingDirection = MovingDirection.down;
       }
       this.requestedMovingDirection = MovingDirection.down;
+      this.madeFirstMove = true;
     }
     // left
     if (event.keyCode == 37) {
@@ -96,6 +105,7 @@ export default class Pacman {
         this.currentMovingDirection = MovingDirection.left;
       }
       this.requestedMovingDirection = MovingDirection.left;
+      this.madeFirstMove = true;
     }
     // right
     if (event.keyCode == 39) {
@@ -103,6 +113,7 @@ export default class Pacman {
         this.currentMovingDirection = MovingDirection.right;
       }
       this.requestedMovingDirection = MovingDirection.right;
+      this.madeFirstMove = true;
     }
   };
 
@@ -173,6 +184,45 @@ export default class Pacman {
       if (this.pacmanImageIndex == this.pacmanImages.length) {
         this.pacmanImageIndex = 0;
       }
+    }
+  }
+
+  #eatDot() {
+    if (this.tileMap.eatDot(this.x, this.y) && this.madeFirstMove) {
+      this.wakaSound.play();
+    }
+  }
+
+  #eatPowerDot() {
+    if (this.tileMap.eatPowerDot(this.x, this.y) && this.madeFirstMove) {
+      this.powerDotSound.play();
+      this.powerDotActive = true;
+      this.powerDotAboutToExpire = false;
+      this.timers.forEach((timer) => clearTimeout(timer));
+      this.timers = [];
+
+      let powerDotTimer = setTimeout(() => {
+        this.powerDotActive = false;
+        this.powerDotAboutToExpire = false;
+      }, 1000 * 6);
+
+      this.timers.push(powerDotTimer);
+
+      let powerDotAboutToExpireTimer = setTimeout(() => {
+        this.powerDotAboutToExpire = true;
+      }, 1000 * 3);
+
+      this.timers.push(powerDotAboutToExpireTimer);
+    }
+  }
+
+  #eatGhost(enemies) {
+    if (this.powerDotActive) {
+      const collideEnemies = enemies.filter((enemy) => enemy.collideWith(this));
+      collideEnemies.forEach((enemy) => {
+        enemies.splice(enemies.indexOf(enemy), 1);
+        this.eatGhostSound.play();
+      });
     }
   }
 }
